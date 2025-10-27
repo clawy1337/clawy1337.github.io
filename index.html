@@ -145,12 +145,13 @@
     </style>
     <script src="auth.js"></script>
 </head>
-<body onload="checkLogin().then(isLoggedIn => { if (!isLoggedIn) document.getElementById('main-content').style.display = 'none'; })">
-    <div class="login-container" id="login-container">
+<body>
+    <div class="login-container" id="login-container" style="display: block;">
         <h2>Giriş Yap</h2>
         <input type="text" id="username" class="form-control" placeholder="Kullanıcı Adı" required>
         <input type="password" id="password" class="form-control" placeholder="Şifre" required>
-        <button onclick="checkLogin().then(isLoggedIn => { if (isLoggedIn) { document.getElementById('main-content').style.display = 'block'; document.getElementById('login-container').style.display = 'none'; })" class="btn">Giriş Yap</button>
+        <button onclick="loginFromForm()" class="btn">Giriş Yap</button>
+        <p id="login-message" style="color: var(--accent);"></p>
     </div>
     <div id="main-content" style="display: none;">
         <header>
@@ -191,5 +192,35 @@
             © 2025 Clawy1337 • <a href="https://clawy1337.github.io" style="color:var(--accent);">clawy1337.github.io</a>
         </footer>
     </div>
+    <script>
+        // Sayfa yüklendiğinde otomatik giriş kontrolü
+        window.onload = async () => {
+            const savedUsername = localStorage.getItem('username');
+            const savedHash = localStorage.getItem('passwordHash');
+            if (savedUsername && savedHash) {
+                const user = await checkLogin(savedUsername, ''); // Şifre boş, savedHash ile kontrol
+                if (user) {
+                    document.getElementById('main-content').style.display = 'block';
+                    document.getElementById('login-container').style.display = 'none';
+                }
+            }
+        };
+
+        // Form'dan giriş
+        async function loginFromForm() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const messageEl = document.getElementById('login-message');
+
+            const user = await checkLogin(username, password);
+            if (user) {
+                messageEl.textContent = 'Giriş başarılı!';
+                document.getElementById('main-content').style.display = 'block';
+                document.getElementById('login-container').style.display = 'none';
+            } else {
+                messageEl.textContent = 'Yanlış kullanıcı adı veya şifre!';
+            }
+        }
+    </script>
 </body>
 </html>
