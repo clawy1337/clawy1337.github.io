@@ -80,10 +80,10 @@ async function fetchStatus() {
     }
 }
 
-// Durumu otomatik güncelle (GitHub API ile)
+// Durumu otomatik güncelle (GitHub API ile, UTF-8 için encode düzeltildi)
 async function updateStatusJson(newStatus, now) {
     try {
-        // Önce mevcut dosyanın SHA'sını al (güncelleme için gerekli)
+        // Önce mevcut dosyanın SHA'sını al
         const getResponse = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
             headers: {
                 'Authorization': `token ${GITHUB_TOKEN}`,
@@ -94,11 +94,14 @@ async function updateStatusJson(newStatus, now) {
         const sha = fileData.sha;
 
         // Yeni JSON içeriği
-        const newContent = btoa(JSON.stringify({
+        const jsonContent = JSON.stringify({
             status_text: newStatus,
             last_updated: now,
             last_updated_by: localStorage.getItem('username')
-        }, null, 2)); // Base64 encode
+        }, null, 2);
+
+        // UTF-8 için encode
+        const newContent = btoa(unescape(encodeURIComponent(jsonContent)));
 
         // Dosyayı güncelle
         const updateResponse = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
