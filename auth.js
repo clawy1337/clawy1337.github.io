@@ -20,8 +20,8 @@ const users = [
     }
 ];
 
-// GitHub token (senin token'ın)
-const GITHUB_TOKEN = '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';
+// GitHub token (yeni token)
+const GITHUB_TOKEN = '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';
 const REPO_OWNER = 'clawy1337';
 const REPO_NAME = 'clawy1337.github.io';
 const BRANCH = 'main';
