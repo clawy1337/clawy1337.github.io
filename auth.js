@@ -20,23 +20,27 @@ const users = [
     }
 ];
 
-// Giriş kontrolü
-async function checkLogin() {
+// GitHub token (senin token'ın)
+const GITHUB_TOKEN = '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';
+const REPO_OWNER = 'clawy1337';
+const REPO_NAME = 'clawy1337.github.io';
+const BRANCH = 'main';
+const FILE_PATH = 'status.json';
+
+// Giriş kontrolü (form için)
+async function checkLogin(username, password) {
     const savedUsername = localStorage.getItem('username');
     const savedHash = localStorage.getItem('passwordHash');
     if (savedUsername && savedHash) {
         const user = users.find(u => u.username === savedUsername && u.passwordHash === savedHash);
         if (user) {
             localStorage.setItem('isAdmin', user.isAdmin);
-            localStorage.setItem('lastLogin', new Date().toLocaleString('tr-TR')); // IP yerine giriş zamanı
-            return true;
+            localStorage.setItem('lastLogin', new Date().toLocaleString('tr-TR'));
+            return user;
         }
     }
 
-    const username = prompt('Kullanıcı adını gir:');
-    if (!username) return false;
-    const password = prompt('Şifreni gir:');
-    if (!password) return false;
+    if (!username || !password) return null;
 
     const hashedPassword = await sha256(password);
     const user = users.find(u => u.username === username && u.passwordHash === hashedPassword);
@@ -45,11 +49,11 @@ async function checkLogin() {
         localStorage.setItem('username', username);
         localStorage.setItem('passwordHash', hashedPassword);
         localStorage.setItem('isAdmin', user.isAdmin);
-        localStorage.setItem('lastLogin', new Date().toLocaleString('tr-TR')); // Giriş zamanı
-        return true;
+        localStorage.setItem('lastLogin', new Date().toLocaleString('tr-TR'));
+        return user;
     } else {
         alert('Yanlış kullanıcı adı veya şifre!');
-        return false;
+        return null;
     }
 }
 
@@ -76,7 +80,57 @@ async function fetchStatus() {
     }
 }
 
-// Durumu güncelle (manuel JSON güncelleme gerekecek)
+// Durumu otomatik güncelle (GitHub API ile)
+async function updateStatusJson(newStatus, now) {
+    try {
+        // Önce mevcut dosyanın SHA'sını al (güncelleme için gerekli)
+        const getResponse = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        const fileData = await getResponse.json();
+        const sha = fileData.sha;
+
+        // Yeni JSON içeriği
+        const newContent = btoa(JSON.stringify({
+            status_text: newStatus,
+            last_updated: now,
+            last_updated_by: localStorage.getItem('username')
+        }, null, 2)); // Base64 encode
+
+        // Dosyayı güncelle
+        const updateResponse = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: `Durum güncellendi: ${newStatus} by ${localStorage.getItem('username')}`,
+                content: newContent,
+                sha: sha,
+                branch: BRANCH
+            })
+        });
+
+        if (updateResponse.ok) {
+            console.log('status.json otomatik güncellendi!');
+            alert('Durum başarıyla kaydedildi ve GitHub\'a yüklendi!');
+        } else {
+            const errorData = await updateResponse.json();
+            console.error('Güncelleme hatası:', errorData);
+            alert('Güncelleme hatası: ' + errorData.message + '. Manuel güncelle!');
+        }
+    } catch (error) {
+        console.error('API hatası:', error);
+        alert('API hatası: ' + error.message + '. Token\'ı kontrol et veya manuel güncelle!');
+    }
+}
+
+// Durumu güncelle
 async function editStatus() {
     if (!isAdmin()) {
         alert('Sadece adminler durumu değiştirebilir!');
@@ -92,11 +146,7 @@ async function editStatus() {
         statusTextEl.innerText = newStatus.trim();
         lastUpdateEl.innerText = now;
 
-        alert('Durum güncellendi! Lütfen status.json dosyasını GitHub\'da manuel güncelle.');
-        console.log('Yeni status.json içeriği:', JSON.stringify({
-            status_text: newStatus.trim(),
-            last_updated: now,
-            last_updated_by: localStorage.getItem('username') // Kimin güncellediği
-        }, null, 2));
+        // Otomatik güncelle
+        await updateStatusJson(newStatus.trim(), now);
     }
 }
